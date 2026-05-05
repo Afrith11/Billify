@@ -6,21 +6,45 @@ import { initDatabase } from './db/database'
 import { registerIpcHandlers } from './db/ipcHandlers'
 
 function createWindow() {
+  // Create Splash Screen
+  const splash = new BrowserWindow({
+    width: 500,
+    height: 400,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    center: true,
+    webPreferences: {
+      nodeIntegration: true
+    }
+  })
+  
+  splash.loadFile(join(__dirname, '../renderer/splash.html'))
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1280,
+    height: 800,
     show: false,
+    title: 'Billify',
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    ...(process.platform !== 'darwin' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    // Hide splash and show main window
+    setTimeout(() => {
+      if (splash && !splash.isDestroyed()) splash.close()
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show()
+        mainWindow.maximize()
+      }
+    }, 2000) // Small delay for premium feel
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -48,7 +72,7 @@ function createWindow() {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.billify.app')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

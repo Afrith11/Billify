@@ -1,4 +1,4 @@
-# bills-pack
+# Billify
 
 An Electron application with React
 
