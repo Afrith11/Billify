@@ -18,8 +18,11 @@ const api = {
 
   // Invoices
   getInvoices: (filters) => ipcRenderer.invoke('get-invoices', filters),
+  getInvoiceById: (id) => ipcRenderer.invoke('get-invoice-by-id', id),
   getInvoiceItems: (invoiceId) => ipcRenderer.invoke('get-invoice-items', invoiceId),
+  getInvoiceReturns: (invoiceId) => ipcRenderer.invoke('get-invoice-returns', invoiceId),
   createInvoice: (invoice) => ipcRenderer.invoke('create-invoice', invoice),
+  deleteInvoice: (id) => ipcRenderer.invoke('delete-invoice', id),
   getNextInvoiceNumber: () => ipcRenderer.invoke('get-next-invoice-number'),
   
   // Payments

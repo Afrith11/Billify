@@ -35,22 +35,22 @@ const ReceivableReport = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
         <div className="card" style={{ borderLeft: '5px solid #ef4444' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>TOTAL RECEIVABLE</span>
-          <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0.5rem 0', color: '#b91c1c' }}>₹{totalOutstanding.toLocaleString()}</h2>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0.5rem 0', color: '#b91c1c' }}>₹{(totalOutstanding || 0).toLocaleString()}</h2>
           <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '600' }}>Overall Pending Balance</p>
         </div>
         <div className="card">
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>0-30 DAYS</span>
-          <h2 style={{ margin: '0.5rem 0' }}>₹{overdue30.toLocaleString()}</h2>
+          <h2 style={{ margin: '0.5rem 0' }}>₹{(overdue30 || 0).toLocaleString()}</h2>
           <div style={{ fontSize: '0.7rem', color: 'var(--success)', fontWeight: '600' }}>Current Dues</div>
         </div>
         <div className="card">
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>31-60 DAYS</span>
-          <h2 style={{ margin: '0.5rem 0', color: '#f59e0b' }}>₹{overdue60.toLocaleString()}</h2>
+          <h2 style={{ margin: '0.5rem 0', color: '#f59e0b' }}>₹{(overdue60 || 0).toLocaleString()}</h2>
           <div style={{ fontSize: '0.7rem', color: '#d97706', fontWeight: '600' }}>Overdue</div>
         </div>
         <div className="card">
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>61+ DAYS</span>
-          <h2 style={{ margin: '0.5rem 0', color: '#ef4444' }}>₹{overdue90.toLocaleString()}</h2>
+          <h2 style={{ margin: '0.5rem 0', color: '#ef4444' }}>₹{(overdue90 || 0).toLocaleString()}</h2>
           <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: '600' }}>Critically Overdue</div>
         </div>
       </div>
@@ -94,7 +94,7 @@ const ReceivableReport = () => {
                     ₹{(cust.aging?.bracket_90 || 0).toLocaleString()}
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: '800', fontSize: '1.1rem' }}>
-                    ₹{cust.outstanding.toLocaleString()}
+                    ₹{(cust.outstanding || 0).toLocaleString()}
                   </td>
                   <td>
                     <button className="btn btn-outline" style={{ padding: '4px 10px', fontSize: '0.75rem' }}>

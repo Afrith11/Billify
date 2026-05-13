@@ -269,7 +269,7 @@ const Items = () => {
                         <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{item.color}</span>
                       </div>
                     </td>
-                    <td className="rate-pill">₹{item.rate.toLocaleString()}</td>
+                    <td className="rate-pill">₹{(item.rate || 0).toLocaleString()}</td>
                     <td className="stock-pill">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{

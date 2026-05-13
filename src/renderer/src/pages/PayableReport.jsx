@@ -44,7 +44,7 @@ const PayableReport = () => {
         <div style={{ display: 'flex', gap: '2rem' }}>
           <div className="card" style={{ padding: '1.25rem 2.5rem', borderLeft: '5px solid #ef4444' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>TOTAL PAYABLE</span>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: '800', margin: '0.25rem 0', color: '#b91c1c' }}>₹{totalPayable.toLocaleString()}</h2>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: '800', margin: '0.25rem 0', color: '#b91c1c' }}>₹{(totalPayable || 0).toLocaleString()}</h2>
           </div>
           <div className="card" style={{ padding: '1.25rem 2.5rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>PENDING BILLS</span>
@@ -93,7 +93,7 @@ const PayableReport = () => {
               <tr key={item.id}>
                 <td>
                   <div style={{ fontWeight: '700', color: new Date(item.due_date) < new Date() ? '#ef4444' : 'inherit' }}>
-                    {item.due_date || item.expense_date}
+                    {(item.due_date || item.expense_date) ? new Date(item.due_date || item.expense_date).toLocaleDateString() : '-'}
                   </div>
                   {new Date(item.due_date) < new Date() && (
                     <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: '800' }}>OVERDUE</div>
@@ -109,7 +109,7 @@ const PayableReport = () => {
                   </span>
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: '800', fontSize: '1.1rem', color: '#b91c1c' }}>
-                  ₹{item.amount.toLocaleString()}
+                  ₹{(item.amount || 0).toLocaleString()}
                 </td>
                 <td>
                   <span style={{ 

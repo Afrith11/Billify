@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 const ReceiptStatement = () => {
-  const { receipts, refreshReceipts } = useStore();
+  const { receipts, refreshReceipts, viewInvoice } = useStore();
   const [filters, setFilters] = useState({
     fromDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
     toDate: new Date().toISOString().split('T')[0],
@@ -32,7 +32,11 @@ const ReceiptStatement = () => {
   const totalReceived = (filteredReceipts || []).reduce((sum, r) => sum + r.amount, 0);
 
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch (err) {
+      console.error('Print failed:', err);
+    }
   };
 
   return (
@@ -44,7 +48,7 @@ const ReceiptStatement = () => {
             <span style={{ fontSize: '0.85rem', fontWeight: '600', opacity: 0.9 }}>TOTAL RECEIPTS</span>
             <TrendingDown size={20} />
           </div>
-          <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0.5rem 0' }}>₹{totalReceived.toLocaleString()}</h2>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0.5rem 0' }}>₹{(totalReceived || 0).toLocaleString()}</h2>
           <p style={{ fontSize: '0.75rem', opacity: 0.8 }}>Selected Period</p>
         </div>
         <div className="card">
@@ -121,7 +125,7 @@ const ReceiptStatement = () => {
             {filteredReceipts.length > 0 ? filteredReceipts.map((receipt) => (
               <tr key={receipt.id}>
                 <td>
-                  <div style={{ fontWeight: '600' }}>{receipt.payment_date}</div>
+                  <div style={{ fontWeight: '600' }}>{receipt.payment_date ? new Date(receipt.payment_date).toLocaleDateString() : '-'}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Rec #{receipt.id}</div>
                 </td>
                 <td>
@@ -136,7 +140,12 @@ const ReceiptStatement = () => {
                 </td>
                 <td>
                   {receipt.invoice_number ? (
-                    <span style={{ fontWeight: '600', color: 'var(--accent-primary)' }}>INV: {receipt.invoice_number}</span>
+                    <span 
+                      style={{ fontWeight: '800', color: 'var(--accent-primary)', cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => viewInvoice(receipt.invoice_id)}
+                    >
+                      INV: {receipt.invoice_number}
+                    </span>
                   ) : (
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{receipt.description || 'General Receipt'}</span>
                   )}
@@ -155,7 +164,7 @@ const ReceiptStatement = () => {
                   </span>
                 </td>
                 <td style={{ textAlign: 'right', fontWeight: '800', fontSize: '1.1rem', color: '#059669' }}>
-                  ₹{receipt.amount.toLocaleString()}
+                  ₹{(receipt.amount || 0).toLocaleString()}
                 </td>
               </tr>
             )) : (

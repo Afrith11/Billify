@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import useStore from '../store/useStore';
 import { ArrowLeft, Edit2, Trash2, Package, Tag, Layers, Palette, IndianRupee, Database, Type, FileText } from 'lucide-react';
 
@@ -111,7 +112,7 @@ const ItemDetails = () => {
         <DetailCard icon={Tag} label="Category" field="category" value={selectedItem.category} />
         <DetailCard icon={Layers} label="Size" field="size" value={selectedItem.size} />
         <DetailCard icon={Palette} label="Color" field="color" value={selectedItem.color} />
-        <DetailCard icon={IndianRupee} label="Rate" field="rate" type="number" value={`₹${selectedItem.rate.toLocaleString()}`} />
+        <DetailCard icon={IndianRupee} label="Rate" field="rate" type="number" value={`₹${(selectedItem.rate || 0).toLocaleString()}`} />
         <DetailCard icon={FileText} label="HSN / SAC Code" field="hsn_code" value={selectedItem.hsn_code} />
         <DetailCard icon={Database} label="Current Stock" field="quantity" type="number" value={`${selectedItem.quantity} ${selectedItem.unit}`} color={selectedItem.quantity <= 5 ? 'var(--error)' : 'var(--success)'} />
       </div>
@@ -146,7 +147,7 @@ const ItemDetails = () => {
         <div style={{ flex: 1, background: 'white', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '1.5rem' }}>
           <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Value in Stock</h4>
           <p style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--accent-primary)' }}>
-            ₹{(selectedItem.rate * selectedItem.quantity).toLocaleString()}
+            ₹{((selectedItem.rate || 0) * (selectedItem.quantity || 0)).toLocaleString()}
           </p>
         </div>
       </div>

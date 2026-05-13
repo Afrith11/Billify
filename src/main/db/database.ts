@@ -170,6 +170,7 @@ export const initDatabase = () => {
         total_amount REAL NOT NULL,
         gst_amount REAL DEFAULT 0,
         discount_amount REAL DEFAULT 0,
+        round_off REAL DEFAULT 0,
         net_amount REAL NOT NULL,
         payment_type TEXT, -- 'Cash' or 'Credit'
         bill_date DATE NOT NULL,

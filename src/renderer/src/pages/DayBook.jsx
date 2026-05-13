@@ -4,7 +4,7 @@ import { Plus, Search, X, Printer, Trash2, Calendar, ShoppingBag, User, Percent,
 import InvoiceModal from '../components/InvoiceModal';
 
 const DayBook = () => {
-  const { customers, items, refreshItems, refreshCustomers, daybook, refreshDaybook, showNotification } = useStore();
+  const { customers, items, refreshItems, refreshCustomers, daybook, refreshDaybook, showNotification, viewInvoice } = useStore();
   const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]);
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -154,6 +154,10 @@ const DayBook = () => {
 
       if (!isInvoiceSaved) {
         const freshInvoiceNo = await window.api.getNextInvoiceNumber();
+        const netTotalRaw = subtotal + gstAmount - discountAmount;
+        const netTotalFormatted = Math.round(netTotalRaw);
+        const roundOff = netTotalFormatted - netTotalRaw;
+
         const invoiceData = {
           invoice_number: freshInvoiceNo,
           customer_id: selectedCustomer.id,
@@ -161,7 +165,8 @@ const DayBook = () => {
           total_amount: subtotal,
           gst_amount: gstAmount,
           discount_amount: discountAmount,
-          net_amount: netTotal,
+          round_off: roundOff,
+          net_amount: netTotalFormatted,
           payment_type: paymentType,
           bill_date: fromDate,
           items: billItems
@@ -313,23 +318,23 @@ const DayBook = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
         <div className="card" style={{ padding: '1.25rem', borderRadius: '20px', borderLeft: '5px solid var(--success)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Total Sales</p>
-          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--success)' }}>₹{totalDebit.toLocaleString()}</p>
+          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--success)' }}>₹{(totalDebit || 0).toLocaleString()}</p>
         </div>
         <div className="card" style={{ padding: '1.25rem', borderRadius: '20px', borderLeft: '5px solid #3b82f6', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Total Payments</p>
-          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: '#3b82f6' }}>₹{totalPayments.toLocaleString()}</p>
+          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: '#3b82f6' }}>₹{(totalPayments || 0).toLocaleString()}</p>
         </div>
         <div className="card" style={{ padding: '1.25rem', borderRadius: '20px', borderLeft: '5px solid #ef4444', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Sales Returns</p>
-          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ef4444' }}>₹{totalReturns.toLocaleString()}</p>
+          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ef4444' }}>₹{(totalReturns || 0).toLocaleString()}</p>
         </div>
         <div className="card" style={{ padding: '1.25rem', borderRadius: '20px', borderLeft: '5px solid #f97316', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Expenses</p>
-          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f97316' }}>₹{totalExpenses.toLocaleString()}</p>
+          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f97316' }}>₹{(totalExpenses || 0).toLocaleString()}</p>
         </div>
         <div className="card" style={{ padding: '1.25rem', borderRadius: '20px', borderLeft: '5px solid var(--accent-primary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Net Cash Flow</p>
-          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--accent-primary)' }}>₹{netBalance.toLocaleString()}</p>
+          <p style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--accent-primary)' }}>₹{(netBalance || 0).toLocaleString()}</p>
         </div>
       </div>
 
@@ -358,11 +363,21 @@ const DayBook = () => {
             {(paginatedData || []).map((row, idx) => (
               <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
                 <td style={{ padding: '1.25rem' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{row.date}</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{row.date ? new Date(row.date).toLocaleDateString() : '-'}</div>
                 </td>
                 <td style={{ padding: '1.25rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.ref}</span>
+                    <span 
+                      style={{ 
+                        fontWeight: 700, 
+                        color: row.type === 'invoice' ? 'var(--accent-primary)' : 'var(--text-primary)',
+                        cursor: row.type === 'invoice' ? 'pointer' : 'default',
+                        textDecoration: row.type === 'invoice' ? 'underline' : 'none'
+                      }}
+                      onClick={() => row.type === 'invoice' && viewInvoice(row.id)}
+                    >
+                      {row.ref}
+                    </span>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{row.customer_name}</span>
                   </div>
                 </td>
@@ -384,10 +399,10 @@ const DayBook = () => {
                   </span>
                 </td>
                 <td style={{ padding: '1.25rem', fontWeight: '700', color: row.debit > 0 ? 'var(--success)' : 'var(--text-secondary)' }}>
-                  {row.debit > 0 ? `+ ₹${row.debit.toLocaleString()}` : '-'}
+                  {row.debit > 0 ? `+ ₹${(row.debit || 0).toLocaleString()}` : '-'}
                 </td>
                 <td style={{ padding: '1.25rem', fontWeight: '700', color: row.credit > 0 ? 'var(--error)' : 'var(--text-secondary)' }}>
-                  {row.credit > 0 ? `- ₹${row.credit.toLocaleString()}` : '-'}
+                  {row.credit > 0 ? `- ₹${(row.credit || 0).toLocaleString()}` : '-'}
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   {row.type === 'invoice' && (
@@ -716,7 +731,7 @@ const DayBook = () => {
                       </p>
 
                       <div className="price">
-                        ₹{item.rate.toLocaleString()}
+                        ₹{(item.rate || 0).toLocaleString()}
                       </div>
                     </div>
                   ))}
@@ -792,12 +807,12 @@ const DayBook = () => {
                               />
                               {item.unit === 'Box' && item.conversion_qty && (
                                 <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                                  ({(item.quantity * item.conversion_qty).toLocaleString()} pcs)
+                                  ({((item.quantity || 0) * (item.conversion_qty || 1)).toLocaleString()} pcs)
                                 </p>
                               )}
                             </td>
-                            <td style={{ textAlign: 'center', fontWeight: '500' }}>₹{item.rate}</td>
-                            <td style={{ textAlign: 'right', fontWeight: '700' }}>₹{item.amount.toLocaleString()}</td>
+                            <td style={{ textAlign: 'center', fontWeight: '500' }}>₹{(item.rate || 0).toLocaleString()}</td>
+                            <td style={{ textAlign: 'right', fontWeight: '700' }}>₹{(item.amount || 0).toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>
                               <button onClick={() => removeItem(item.id)} className="btn-icon" style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer' }}><Trash2 size={16} /></button>
                             </td>
@@ -827,20 +842,20 @@ const DayBook = () => {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        <span>Subtotal ({billItems.length} items)</span>
-                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>₹{subtotal.toLocaleString()}</span>
+                        <span>Subtotal ({(billItems || []).length} items)</span>
+                        <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>₹{(subtotal || 0).toLocaleString()}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                         <span>Tax / GST</span>
-                        <span style={{ color: '#6366f1', fontWeight: '600' }}>+ ₹{gstAmount.toLocaleString()}</span>
+                        <span style={{ color: '#6366f1', fontWeight: '600' }}>+ ₹{(gstAmount || 0).toLocaleString()}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                         <span>Total Discount</span>
-                        <span style={{ color: 'var(--success)', fontWeight: '600' }}>- ₹{discountAmount.toLocaleString()}</span>
+                        <span style={{ color: 'var(--success)', fontWeight: '600' }}>- ₹{(discountAmount || 0).toLocaleString()}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', paddingTop: '1rem', borderTop: '2px dashed #e2e8f0' }}>
                         <span style={{ fontSize: '1.25rem', fontWeight: '800' }}>Grand Total</span>
-                        <span style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--accent-primary)', letterSpacing: '-0.02em' }}>₹{netTotal.toLocaleString()}</span>
+                        <span style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--accent-primary)', letterSpacing: '-0.02em' }}>₹{(netTotal || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>

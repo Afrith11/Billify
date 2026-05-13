@@ -12,7 +12,7 @@ import {
 import PrintHeader from '../components/PrintHeader';
 
 const PaidStatement = () => {
-  const { customers, refreshCustomers } = useStore();
+  const { customers, refreshCustomers, viewInvoice } = useStore();
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [statement, setStatement] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +41,11 @@ const PaidStatement = () => {
   );
 
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch (err) {
+      console.error('Print failed:', err);
+    }
   };
 
   return (
@@ -103,13 +107,13 @@ const PaidStatement = () => {
                 <div className="card" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)' }}>TOTAL INVOICED</span>
                   <p style={{ fontSize: '1.5rem', fontWeight: '800', margin: '0.25rem 0' }}>
-                    ₹{(statement || []).filter(e => e.type === 'Debit').reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                    ₹{(statement || []).filter(e => e.type === 'Debit').reduce((sum, e) => sum + (e.amount || 0), 0).toLocaleString()}
                   </p>
                 </div>
                 <div className="card" style={{ borderLeft: '4px solid var(--success)' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)' }}>TOTAL PAID</span>
                   <p style={{ fontSize: '1.5rem', fontWeight: '800', margin: '0.25rem 0', color: 'var(--success)' }}>
-                    ₹{(statement || []).filter(e => e.type === 'Credit').reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                    ₹{(statement || []).filter(e => e.type === 'Credit').reduce((sum, e) => sum + (e.amount || 0), 0).toLocaleString()}
                   </p>
                 </div>
                 <div className="card" style={{ borderLeft: '4px solid #f59e0b' }}>
@@ -157,7 +161,17 @@ const PaidStatement = () => {
                           <tr key={index}>
                             <td>{entry.date}</td>
                             <td>
-                              <div style={{ fontWeight: '600' }}>{entry.description}</div>
+                              <div 
+                                style={{ 
+                                  fontWeight: '700', 
+                                  color: entry.reference_type === 'invoice' ? 'var(--accent-primary)' : 'inherit',
+                                  cursor: entry.reference_type === 'invoice' ? 'pointer' : 'default',
+                                  textDecoration: entry.reference_type === 'invoice' ? 'underline' : 'none'
+                                }}
+                                onClick={() => entry.reference_type === 'invoice' && viewInvoice(entry.reference_id)}
+                              >
+                                {entry.description}
+                              </div>
                               <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Ref: {entry.reference_type} #{entry.reference_id}</div>
                             </td>
                             <td>
@@ -172,10 +186,10 @@ const PaidStatement = () => {
                                 {entry.type.toUpperCase()}
                               </span>
                             </td>
-                            <td style={{ textAlign: 'right', fontWeight: '700' }}>{entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}</td>
-                            <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--success)' }}>{entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}</td>
+                            <td style={{ textAlign: 'right', fontWeight: '700' }}>{entry.debit > 0 ? `₹${(entry.debit || 0).toLocaleString()}` : '-'}</td>
+                            <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--success)' }}>{entry.credit > 0 ? `₹${(entry.credit || 0).toLocaleString()}` : '-'}</td>
                             <td style={{ textAlign: 'right', fontWeight: '800', color: entry.running_balance > 0 ? '#b45309' : 'var(--text-primary)' }}>
-                              ₹{entry.running_balance.toLocaleString()}
+                              ₹{(entry.running_balance || 0).toLocaleString()}
                             </td>
                           </tr>
                         ))

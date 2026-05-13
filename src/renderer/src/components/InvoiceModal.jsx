@@ -3,42 +3,61 @@ import useStore from '../store/useStore';
 import { X, Printer, Download, MapPin, Phone, Mail, Building2 } from 'lucide-react';
 import logoFallback from '../assets/billify.png';
 
-const InvoiceModal = ({ invoice, onClose, autoPrint = false }) => {
+const InvoiceModal = ({ invoice: initialInvoice, onClose, autoPrint = false }) => {
   const { settings } = useStore();
+  const [invoice, setInvoice] = useState(initialInvoice);
   const [items, setItems] = useState([]);
+  const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (invoice && invoice.id) {
-      fetchInvoiceItems();
+    if (initialInvoice && initialInvoice.id) {
+      loadFullData();
     }
-  }, [invoice]);
+  }, [initialInvoice]);
 
   useEffect(() => {
     if (!loading && autoPrint) {
       const timer = setTimeout(() => {
-        window.print();
+        try {
+          window.print();
+        } catch (err) {
+          console.error('Auto-print failed:', err);
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
   }, [loading, autoPrint]);
 
-  const fetchInvoiceItems = async () => {
+  const loadFullData = async () => {
     setLoading(true);
     try {
-      // If the invoice object comes from the daybook, it might not have the real DB ID if it's a join or union.
-      // But DayBook row for 'invoice' type should have the original ID.
-      const data = await window.api.getInvoiceItems(invoice.id);
-      setItems(data || []);
+      // 1. Fetch Full Invoice Metadata (especially needed when printing from history)
+      const fullInvoice = await window.api.getInvoiceById(initialInvoice.id);
+      if (fullInvoice) {
+        setInvoice(fullInvoice);
+      }
+      
+      // 2. Fetch Items
+      const itemData = await window.api.getInvoiceItems(initialInvoice.id);
+      setItems(itemData || []);
+
+      // 3. Fetch Returns
+      const returnData = await window.api.getInvoiceReturns(initialInvoice.id);
+      setReturns(returnData || []);
     } catch (err) {
-      console.error('Failed to fetch invoice items:', err);
+      console.error('Failed to load full invoice data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch (err) {
+      console.error('Manual print failed:', err);
+    }
   };
 
   if (!invoice) return null;
@@ -63,7 +82,7 @@ const InvoiceModal = ({ invoice, onClose, autoPrint = false }) => {
           alignItems: 'center',
           flexShrink: 0
         }}>
-          <h3 style={{ margin: 0 }}>Invoice #{invoice.invoice_number}</h3>
+          <h3 style={{ margin: 0 }}>Invoice #{invoice.invoice_number || invoice.ref}</h3>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button className="btn btn-primary" onClick={handlePrint}>
               <Printer size={18} /> Print Invoice
@@ -116,7 +135,7 @@ const InvoiceModal = ({ invoice, onClose, autoPrint = false }) => {
                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>Invoice Number</p>
                   <p style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>{invoice.invoice_number}</p>
                   <p style={{ margin: '1rem 0 0 0', fontSize: '0.9rem', color: '#64748b' }}>Date</p>
-                  <p style={{ margin: 0, fontSize: '1rem', fontWeight: '700' }}>{invoice.bill_date}</p>
+                  <p style={{ margin: 0, fontSize: '1rem', fontWeight: '700' }}>{invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString() : '-'}</p>
                 </div>
               </div>
             </div>
@@ -127,14 +146,19 @@ const InvoiceModal = ({ invoice, onClose, autoPrint = false }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3rem' }}>
               <div>
                 <p style={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Bill To</p>
-                <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{invoice.customer_name}</h3>
-                {/* We might need to fetch customer details to show address/GST here */}
-                <p style={{ margin: '4px 0', fontSize: '0.9rem', color: '#64748b' }}>Payment Mode: <span style={{ fontWeight: '700', color: '#1e293b' }}>{invoice.payment_type}</span></p>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>{invoice.customer_name}</h3>
+                <div style={{ marginTop: '0.5rem', color: '#64748b', fontSize: '0.9rem' }}>
+                  {invoice.customer_address && <p style={{ margin: '2px 0' }}>{invoice.customer_address}</p>}
+                  <p style={{ margin: '2px 0' }}>Ph: {invoice.customer_phone}</p>
+                  {invoice.customer_gst && <p style={{ margin: '4px 0', fontWeight: '700', color: 'var(--accent-primary)' }}>GSTIN: {invoice.customer_gst}</p>}
+                </div>
+                <p style={{ margin: '12px 0 4px 0', fontSize: '0.9rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.05em' }}>Payment Mode</p>
+                <p style={{ margin: 0, fontWeight: '700', color: '#1e293b' }}>{invoice.payment_type}</p>
               </div>
             </div>
 
             {/* Items Table */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '3rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                   <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.8rem' }}>#</th>
@@ -156,28 +180,51 @@ const InvoiceModal = ({ invoice, onClose, autoPrint = false }) => {
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center', color: '#64748b' }}>{item.hsn_code || '-'}</td>
                     <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '600' }}>{item.quantity}</td>
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>₹{item.rate.toLocaleString()}</td>
-                    <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '700' }}>₹{item.amount.toLocaleString()}</td>
+                    <td style={{ padding: '1rem', textAlign: 'right' }}>₹{(item.rate || 0).toLocaleString()}</td>
+                    <td style={{ padding: '1rem', textAlign: 'right', fontWeight: '700' }}>₹{(item.amount || 0).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            {/* Totals Section */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <div style={{ width: '300px' }}>
+            {/* Bottom Section: Returns & Totals */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
+              <div>
+                {returns.length > 0 && (
+                  <div style={{ background: '#fef2f2', padding: '1rem', borderRadius: '12px', border: '1px solid #fee2e2' }}>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '0.75rem', fontWeight: '800', color: '#991b1b', textTransform: 'uppercase' }}>Returns Adjustment</p>
+                    <table style={{ width: '100%', fontSize: '0.8rem' }}>
+                      <tbody>
+                        {returns.map((ret, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #fecaca' }}>
+                            <td style={{ padding: '4px 0' }}>{ret.item_name} ({ret.quantity})</td>
+                            <td style={{ padding: '4px 0', textAlign: 'right', fontWeight: '700' }}>₹{(ret.amount || 0).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#64748b' }}>
                   <span>Subtotal</span>
-                  <span style={{ fontWeight: '700', color: '#1e293b' }}>₹{invoice.total_amount.toLocaleString()}</span>
+                  <span style={{ fontWeight: '700', color: '#1e293b' }}>₹{(invoice.total_amount || 0).toLocaleString()}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#64748b' }}>
                   <span>GST / Tax</span>
-                  <span style={{ fontWeight: '700', color: '#1e293b' }}>+ ₹{invoice.gst_amount.toLocaleString()}</span>
+                  <span style={{ fontWeight: '700', color: '#1e293b' }}>+ ₹{(invoice.gst_amount || 0).toLocaleString()}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#64748b' }}>
                   <span>Discount</span>
-                  <span style={{ fontWeight: '700', color: '#ef4444' }}>- ₹{invoice.discount_amount.toLocaleString()}</span>
+                  <span style={{ fontWeight: '700', color: '#ef4444' }}>- ₹{(invoice.discount_amount || 0).toLocaleString()}</span>
                 </div>
+                {invoice.round_off !== 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#64748b' }}>
+                    <span>Round Off</span>
+                    <span style={{ fontWeight: '700', color: '#64748b' }}>{invoice.round_off > 0 ? '+' : ''} ₹{(invoice.round_off || 0).toLocaleString()}</span>
+                  </div>
+                )}
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
@@ -186,8 +233,15 @@ const InvoiceModal = ({ invoice, onClose, autoPrint = false }) => {
                   borderTop: '2px solid #1e293b' 
                 }}>
                   <span style={{ fontSize: '1.25rem', fontWeight: '900' }}>Grand Total</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent-primary)' }}>₹{invoice.net_amount.toLocaleString()}</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: '900', color: 'var(--accent-primary)' }}>₹{(invoice.net_amount || 0).toLocaleString()}</span>
                 </div>
+                
+                {returns.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', color: '#dc2626', borderTop: '1px solid #fee2e2', marginTop: '0.5rem' }}>
+                    <span style={{ fontWeight: '600' }}>Balance Due</span>
+                    <span style={{ fontWeight: '900' }}>₹{((invoice.net_amount || 0) - returns.reduce((s, r) => s + (r.amount || 0), 0)).toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             </div>
 

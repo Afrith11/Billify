@@ -191,6 +191,66 @@ export const registerIpcHandlers = () => {
     }
   });
 
+  ipcMain.handle('get-invoice-by-id', (_, id) => {
+    try {
+      return db.prepare(`
+        SELECT i.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address, c.tax_id as customer_gst
+        FROM invoices i
+        JOIN customers c ON i.customer_id = c.id
+        WHERE i.id = ?
+      `).get(id);
+    } catch (error) {
+      console.error('Error fetching invoice by id:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('get-invoice-returns', (_, invoiceId) => {
+    try {
+      return db.prepare(`
+        SELECT sr.*, sri.quantity, sri.rate, sri.amount, i.name as item_name
+        FROM sales_returns sr
+        JOIN sales_return_items sri ON sr.id = sri.return_id
+        JOIN items i ON sri.item_id = i.id
+        WHERE sr.invoice_id = ?
+      `).all(invoiceId);
+    } catch (error) {
+      console.error('Error fetching invoice returns:', error);
+      return [];
+    }
+  });
+
+  ipcMain.handle('delete-invoice', (_, id) => {
+    try {
+      const transaction = db.transaction(() => {
+        // 1. Get items to reverse stock
+        const items = db.prepare('SELECT * FROM invoice_items WHERE invoice_id = ?').all(id);
+        const updateStockStmt = db.prepare('UPDATE items SET quantity = quantity + ? WHERE id = ?');
+        
+        for (const item of items) {
+          // Find original item to get unit/conversion if needed
+          const originalItem = db.prepare('SELECT unit, conversion_qty FROM items WHERE id = ?').get(item.item_id);
+          const stockReversal = (originalItem?.unit === 'Box' && originalItem?.conversion_qty)
+            ? item.quantity * originalItem.conversion_qty
+            : item.quantity;
+          updateStockStmt.run(stockReversal, item.item_id);
+        }
+
+        // 2. Delete entries
+        db.prepare('DELETE FROM invoice_items WHERE invoice_id = ?').run(id);
+        db.prepare('DELETE FROM payments WHERE invoice_id = ?').run(id);
+        db.prepare('DELETE FROM ledger_entries WHERE reference_id = ? AND reference_type = "invoice"').run(id);
+        db.prepare('DELETE FROM invoices WHERE id = ?').run(id);
+
+        return { success: true };
+      });
+      return transaction();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      return { success: false, message: error.message };
+    }
+  });
+
   ipcMain.handle('get-invoice-items', (_, invoiceId) => {
     try {
       return db.prepare(`
@@ -238,9 +298,9 @@ export const registerIpcHandlers = () => {
         const invStmt = db.prepare(`
           INSERT INTO invoices (
             invoice_number, customer_id, customer_name, total_amount, 
-            gst_amount, discount_amount, net_amount, payment_type, bill_date
+            gst_amount, discount_amount, round_off, net_amount, payment_type, bill_date
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         const invInfo = invStmt.run(
           invoice.invoice_number, 
@@ -249,6 +309,7 @@ export const registerIpcHandlers = () => {
           invoice.total_amount, 
           invoice.gst_amount, 
           invoice.discount_amount, 
+          invoice.round_off || 0,
           invoice.net_amount, 
           invoice.payment_type, 
           invoice.bill_date
@@ -256,16 +317,20 @@ export const registerIpcHandlers = () => {
         const invoiceId = invInfo.lastInsertRowid;
 
         // 2. Insert Items & Update Stock
-        const itemStmt = db.prepare(`
+        const itemQuery = `
           INSERT INTO invoice_items (invoice_id, item_id, item_name, quantity, rate, amount, hsn_code)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
+        `;
+        const itemStmt = db.prepare(itemQuery);
         const updateStockStmt = db.prepare(`
           UPDATE items SET quantity = quantity - ? WHERE id = ?
         `);
 
         for (const item of invoice.items) {
-          itemStmt.run(invoiceId, item.id, item.name, item.quantity, item.rate, item.amount, item.hsn_code);
+          const itemParams = [invoiceId, item.id, item.name, item.quantity, item.rate, item.amount, item.hsn_code];
+          console.log("ITEM PARAMS:", itemParams);
+          console.log("ITEM PLACEHOLDER COUNT:", itemQuery.match(/\?/g)?.length);
+          itemStmt.run(...itemParams);
           
           // Stock Handling: If Box, multiply by conversion_qty
           const stockDeduction = (item.unit === 'Box' && item.conversion_qty) 
@@ -276,18 +341,56 @@ export const registerIpcHandlers = () => {
         }
 
         // 3. Create Ledger Entry (Debit)
-        const ledgerStmt = db.prepare(`
+        const ledgerQuery = `
           INSERT INTO ledger_entries (customer_id, date, type, amount, reference_id, reference_type, description)
           VALUES (?, ?, 'Debit', ?, ?, 'invoice', ?)
-        `);
-        ledgerStmt.run(
+        `;
+        const ledgerParams = [
           invoice.customer_id, 
           invoice.bill_date, 
           invoice.net_amount, 
           invoiceId, 
-          'invoice', 
           `Invoice #${invoice.invoice_number}`
-        );
+        ];
+
+        console.log("QUERY PARAMS:", ledgerParams);
+        console.log("PLACEHOLDER COUNT:", ledgerQuery.match(/\?/g)?.length);
+
+        const ledgerStmt = db.prepare(ledgerQuery);
+        ledgerStmt.run(...ledgerParams);
+
+        // 4. Handle Cash Payment Flow
+        if (invoice.payment_type === 'Cash') {
+          // Record Payment
+          const payStmt = db.prepare(`
+            INSERT INTO payments (customer_id, invoice_id, amount, payment_date, payment_method, description)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `);
+          const payInfo = payStmt.run(
+            invoice.customer_id,
+            invoiceId,
+            invoice.net_amount,
+            invoice.bill_date,
+            'Cash',
+            `Auto-payment for Invoice #${invoice.invoice_number}`
+          );
+          const paymentId = payInfo.lastInsertRowid;
+
+          // Record Ledger Credit
+          db.prepare(`
+            INSERT INTO ledger_entries (customer_id, date, type, amount, reference_id, reference_type, description)
+            VALUES (?, ?, 'Credit', ?, ?, 'payment', ?)
+          `).run(
+            invoice.customer_id,
+            invoice.bill_date,
+            invoice.net_amount,
+            paymentId,
+            `Cash Payment for Invoice #${invoice.invoice_number}`
+          );
+
+          // Update Invoice Status
+          db.prepare(`UPDATE invoices SET status = 'Paid' WHERE id = ?`).run(invoiceId);
+        }
 
         return { success: true, id: invoiceId, invoiceNumber: invoice.invoice_number };
       });
@@ -333,18 +436,23 @@ export const registerIpcHandlers = () => {
         const paymentId = payInfo.lastInsertRowid;
 
         // 2. Create Ledger Entry (Credit)
-        const ledgerStmt = db.prepare(`
+        const ledgerQuery = `
           INSERT INTO ledger_entries (customer_id, date, type, amount, reference_id, reference_type, description)
           VALUES (?, ?, 'Credit', ?, ?, 'payment', ?)
-        `);
-        ledgerStmt.run(
+        `;
+        const ledgerParams = [
           payment.customer_id, 
           payment.payment_date, 
           payment.amount, 
           paymentId, 
-          'payment', 
           `Payment via ${payment.payment_method}`
-        );
+        ];
+
+        console.log("QUERY PARAMS:", ledgerParams);
+        console.log("PLACEHOLDER COUNT:", ledgerQuery.match(/\?/g)?.length);
+
+        const ledgerStmt = db.prepare(ledgerQuery);
+        ledgerStmt.run(...ledgerParams);
 
         return { success: true };
       });
@@ -363,7 +471,12 @@ export const registerIpcHandlers = () => {
   // Returns
   ipcMain.handle('get-sales-returns', (_, filters) => {
     try {
-      let query = 'SELECT sr.*, c.name as customer_name FROM sales_returns sr JOIN customers c ON sr.customer_id = c.id';
+      let query = `
+        SELECT sr.*, c.name as customer_name, i.invoice_number 
+        FROM sales_returns sr 
+        JOIN customers c ON sr.customer_id = c.id
+        JOIN invoices i ON sr.invoice_id = i.id
+      `;
       const params = [];
       if (filters?.fromDate && filters?.toDate) {
         query += ' WHERE sr.return_date BETWEEN ? AND ?';
@@ -419,18 +532,23 @@ export const registerIpcHandlers = () => {
         }
 
         // 3. Update Ledger (Credit for customer - reducing their debt)
-        const ledgerStmt = db.prepare(`
+        const ledgerQuery = `
           INSERT INTO ledger_entries (customer_id, date, type, amount, reference_id, reference_type, description)
           VALUES (?, ?, 'Credit', ?, ?, 'sales_return', ?)
-        `);
-        ledgerStmt.run(
+        `;
+        const ledgerParams = [
           data.customer_id,
           data.return_date,
           data.net_amount,
           returnId,
-          'sales_return',
           `Sales Return #${returnNumber}`
-        );
+        ];
+
+        console.log("QUERY PARAMS:", ledgerParams);
+        console.log("PLACEHOLDER COUNT:", ledgerQuery.match(/\?/g)?.length);
+
+        const ledgerStmt = db.prepare(ledgerQuery);
+        ledgerStmt.run(...ledgerParams);
 
         // 4. Mark invoice as partially/fully returned (optional metadata)
         db.prepare("UPDATE invoices SET status = 'Returned' WHERE id = ?").run(data.invoice_id);
@@ -610,6 +728,7 @@ export const registerIpcHandlers = () => {
     try {
       let query = `
         SELECT 
+          i.id as invoice_id,
           i.invoice_number, 
           i.customer_name, 
           i.bill_date,

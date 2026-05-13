@@ -14,7 +14,7 @@ import {
 import PrintHeader from '../components/PrintHeader';
 
 const SalesReport = () => {
-  const { advancedSales, refreshAdvancedSales } = useStore();
+  const { advancedSales, refreshAdvancedSales, viewInvoice } = useStore();
   const [filters, setFilters] = useState({
     fromDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
     toDate: new Date().toISOString().split('T')[0],
@@ -52,19 +52,19 @@ const SalesReport = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
         <div className="card" style={{ background: 'linear-gradient(135deg, #4f46e5, #818cf8)', color: 'white', border: 'none' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: '600', opacity: 0.9 }}>GROSS SALES</span>
-          <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0.5rem 0' }}>₹{totalSales.toLocaleString()}</h2>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0.5rem 0' }}>₹{(totalSales || 0).toLocaleString()}</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', opacity: 0.8 }}>
             <TrendingUp size={14} /> Overall Performance
           </div>
         </div>
         <div className="card">
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>TOTAL GST</span>
-          <h2 style={{ margin: '0.5rem 0', color: 'var(--accent-primary)' }}>₹{totalGst.toLocaleString()}</h2>
+          <h2 style={{ margin: '0.5rem 0', color: 'var(--accent-primary)' }}>₹{(totalGst || 0).toLocaleString()}</h2>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Tax Collection</p>
         </div>
         <div className="card">
           <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)' }}>DISCOUNTS</span>
-          <h2 style={{ margin: '0.5rem 0', color: '#ef4444' }}>₹{totalDiscount.toLocaleString()}</h2>
+          <h2 style={{ margin: '0.5rem 0', color: '#ef4444' }}>₹{(totalDiscount || 0).toLocaleString()}</h2>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Savings Given</p>
         </div>
         <div className="card">
@@ -110,14 +110,19 @@ const SalesReport = () => {
                 {filteredSales.map((sale, idx) => (
                   <tr key={idx}>
                     <td>
-                      <div style={{ fontWeight: '700' }}>#{sale.invoice_number}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{sale.bill_date}</div>
+                      <div 
+                        style={{ fontWeight: '800', cursor: 'pointer', color: 'var(--accent-primary)', textDecoration: 'underline' }}
+                        onClick={() => viewInvoice(sale.invoice_id)}
+                      >
+                        #{sale.invoice_number}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{sale.bill_date ? new Date(sale.bill_date).toLocaleDateString() : '-'}</div>
                     </td>
                     <td style={{ fontWeight: '600' }}>{sale.customer_name}</td>
                     <td>{sale.item_name}</td>
                     <td style={{ fontWeight: '600' }}>{sale.quantity}</td>
                     <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--accent-primary)' }}>
-                      ₹{sale.item_total.toLocaleString()}
+                      ₹{(sale.item_total || 0).toLocaleString()}
                     </td>
                   </tr>
                 ))}
@@ -146,7 +151,7 @@ const SalesReport = () => {
                       }}></div>
                     </div>
                   </div>
-                  <div style={{ fontWeight: '800', marginLeft: '1rem', fontSize: '0.85rem' }}>₹{total.toLocaleString()}</div>
+                  <div style={{ fontWeight: '800', marginLeft: '1rem', fontSize: '0.85rem' }}>₹{(total || 0).toLocaleString()}</div>
                 </div>
               ))}
             </div>
@@ -185,7 +190,7 @@ const SalesReport = () => {
                       minHeight: '4px',
                       transition: 'height 0.5s ease-out',
                       position: 'relative'
-                    }} title={`₹${dailyTotals[date].toLocaleString()}`}>
+                    }} title={`₹${(dailyTotals[date] || 0).toLocaleString()}`}>
                     </div>
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', transform: 'rotate(-45deg)', marginTop: '4px', whiteSpace: 'nowrap' }}>
                       {date.split('-').slice(1).reverse().join('/')}

@@ -16,7 +16,18 @@ import {
 } from 'lucide-react';
 
 const Returns = () => {
-  const { salesReturns, refreshSalesReturns, invoices, refreshInvoices, payables, refreshPayables, showNotification } = useStore();
+  const { 
+    salesReturns, 
+    refreshSalesReturns, 
+    purchaseReturns, 
+    refreshPurchaseReturns, 
+    invoices, 
+    refreshInvoices, 
+    payables, 
+    refreshPayables, 
+    showNotification, 
+    viewInvoice 
+  } = useStore();
   const [view, setView] = useState('list'); // 'list' or 'new'
   const [returnType, setReturnType] = useState('sales'); // 'sales' or 'purchase'
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -141,6 +152,9 @@ const Returns = () => {
     setNotes('');
     setView('list');
     refreshSalesReturns();
+    refreshPurchaseReturns();
+    refreshPayables(); // For purchase returns
+    refreshInvoices(); // For sales returns
   };
 
   return (
@@ -211,12 +225,17 @@ const Returns = () => {
               {returnType === 'sales' ? (
                 salesReturns.length > 0 ? salesReturns.map(ret => (
                   <tr key={ret.id}>
-                    <td>{ret.return_date}</td>
+                    <td>{ret.return_date ? new Date(ret.return_date).toLocaleDateString() : '-'}</td>
                     <td style={{ fontWeight: '700' }}>{ret.return_number}</td>
-                    <td>#{ret.invoice_number}</td>
+                    <td 
+                      style={{ fontWeight: '700', color: 'var(--accent-primary)', cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => viewInvoice(ret.invoice_id)}
+                    >
+                      #{ret.invoice_number}
+                    </td>
                     <td>{ret.customer_name}</td>
                     <td style={{ textAlign: 'right', fontWeight: '800', color: '#dc2626' }}>
-                      ₹{ret.net_amount.toLocaleString()}
+                      ₹{(ret.net_amount || 0).toLocaleString()}
                     </td>
                     <td>
                       <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#fef2f2', color: '#991b1b', fontSize: '0.7rem', fontWeight: '800' }}>
@@ -230,12 +249,12 @@ const Returns = () => {
               ) : (
                 purchaseReturns.length > 0 ? purchaseReturns.map(ret => (
                   <tr key={ret.id}>
-                    <td>{ret.return_date}</td>
+                    <td>{ret.return_date ? new Date(ret.return_date).toLocaleDateString() : '-'}</td>
                     <td style={{ fontWeight: '700' }}>PR-{ret.id}</td>
                     <td>Expense ID: {ret.expense_id}</td>
                     <td>{ret.vendor_name}</td>
                     <td style={{ textAlign: 'right', fontWeight: '800', color: '#dc2626' }}>
-                      ₹{ret.amount.toLocaleString()}
+                      ₹{(ret.amount || 0).toLocaleString()}
                     </td>
                     <td>
                       <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#ecfdf5', color: '#065f46', fontSize: '0.7rem', fontWeight: '800' }}>
@@ -316,9 +335,9 @@ const Returns = () => {
                                 }}
                               />
                             </td>
-                            <td style={{ textAlign: 'right' }}>₹{item.rate.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{(item.rate || 0).toLocaleString()}</td>
                             <td style={{ textAlign: 'right', fontWeight: '700', color: item.returnQty > 0 ? 'var(--accent-primary)' : 'inherit' }}>
-                              ₹{(item.rate * item.returnQty).toLocaleString()}
+                              ₹{((item.rate || 0) * (item.returnQty || 0)).toLocaleString()}
                             </td>
                           </tr>
                         )) : (
@@ -337,7 +356,7 @@ const Returns = () => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.85rem', color: '#991b1b', fontWeight: '700' }}>Refund Amount</div>
-                        <div style={{ fontSize: '2rem', fontWeight: '900', color: '#dc2626' }}>₹{selectedInvoice.amount.toLocaleString()}</div>
+                        <div style={{ fontSize: '2rem', fontWeight: '900', color: '#dc2626' }}>₹{(selectedInvoice.amount || 0).toLocaleString()}</div>
                       </div>
                     </div>
                   </div>
@@ -356,8 +375,8 @@ const Returns = () => {
                     <h4 style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{returnType === 'sales' ? 'Total Return Amount' : 'Net Refund Value'}</h4>
                     <div style={{ fontSize: '1.5rem', fontWeight: '800', color: returnType === 'sales' ? 'var(--accent-primary)' : '#dc2626' }}>
                       ₹{returnType === 'sales' 
-                        ? (returnItems || []).reduce((sum, i) => sum + (i.rate * (i.returnQty || 0)), 0).toLocaleString()
-                        : selectedInvoice.amount.toLocaleString()
+                        ? (returnItems || []).reduce((sum, i) => sum + ((i.rate || 0) * (i.returnQty || 0)), 0).toLocaleString()
+                        : (selectedInvoice.amount || 0).toLocaleString()
                       }
                     </div>
                   </div>
@@ -405,11 +424,16 @@ const Returns = () => {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: '700' }}>#{inv.invoice_number}</span>
+                      <span 
+                        style={{ fontWeight: '900', color: 'var(--accent-primary)', textDecoration: 'underline' }}
+                        onClick={(e) => { e.stopPropagation(); viewInvoice(inv.id); }}
+                      >
+                        #{inv.invoice_number}
+                      </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{inv.bill_date}</span>
                     </div>
                     <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{inv.customer_name}</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--accent-primary)', marginTop: '4px' }}>₹{inv.net_amount.toLocaleString()}</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--accent-primary)', marginTop: '4px' }}>₹{(inv.net_amount || 0).toLocaleString()}</div>
                   </div>
                 ))
               ) : (
@@ -430,7 +454,7 @@ const Returns = () => {
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{exp.expense_date}</span>
                     </div>
                     <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{exp.vendor_name}</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#dc2626', marginTop: '4px' }}>₹{exp.amount.toLocaleString()}</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#dc2626', marginTop: '4px' }}>₹{(exp.amount || 0).toLocaleString()}</div>
                   </div>
                 ))
               )}

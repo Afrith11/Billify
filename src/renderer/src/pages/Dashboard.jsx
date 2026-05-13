@@ -4,7 +4,7 @@ import { FileText, Users, Package, ShoppingCart, TrendingUp, BarChart } from 'lu
 import logo from '../assets/billify.png';
 
 const Dashboard = () => {
-  const { stats, refreshDashboard, setActivePage, settings } = useStore();
+  const { stats, refreshDashboard, setActivePage, settings, viewInvoice } = useStore();
 
   useEffect(() => {
     refreshDashboard();
@@ -101,10 +101,15 @@ const Dashboard = () => {
               <tbody>
                 {(stats.recentInvoices || []).length > 0 ? (stats.recentInvoices || []).map((inv) => (
                   <tr key={inv.id} style={{ background: 'var(--bg-secondary)', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                    <td style={{ borderRadius: '12px 0 0 12px', fontWeight: '600' }}>#{inv.invoice_number}</td>
+                    <td 
+                      style={{ borderRadius: '12px 0 0 12px', fontWeight: '800', cursor: 'pointer', color: 'var(--accent-primary)', textDecoration: 'underline' }}
+                      onClick={() => viewInvoice(inv.id)}
+                    >
+                      #{inv.invoice_number}
+                    </td>
                     <td style={{ fontWeight: '500' }}>{inv.customer_name}</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>{inv.bill_date}</td>
-                    <td style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>₹{inv.net_amount.toLocaleString()}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{inv.bill_date ? new Date(inv.bill_date).toLocaleDateString() : '-'}</td>
+                    <td style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>₹{(inv.net_amount || 0).toLocaleString()}</td>
                     <td style={{ borderRadius: '0 12px 12px 0' }}>
                       <span style={{
                         padding: '0.35rem 0.75rem',

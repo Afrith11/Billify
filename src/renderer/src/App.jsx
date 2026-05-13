@@ -15,6 +15,7 @@ import ReceiptStatement from './pages/ReceiptStatement'
 import ReceivableReport from './pages/ReceivableReport'
 import PayableReport from './pages/PayableReport'
 import SalesReport from './pages/SalesReport'
+import InvoiceDetails from './pages/InvoiceDetails'
 import Toast from './components/Toast'
 import AuthPage from './pages/AuthPage'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -50,6 +51,7 @@ function App() {
         case 'receivable-report': return <ReceivableReport />
         case 'payable-report': return <PayableReport />
         case 'sales-report': return <SalesReport />
+        case 'invoice-details': return <InvoiceDetails />
         default: return <Dashboard />
       }
     } catch (err) {
@@ -80,6 +82,7 @@ function App() {
       case 'receivable-report': return 'Receivables Aging Report'
       case 'payable-report': return 'Payables (Business Expenses)'
       case 'sales-report': return 'Advanced Sales Insights'
+      case 'invoice-details': return 'Invoice View'
       default: return 'Dashboard'
     }
   }

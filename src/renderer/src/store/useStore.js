@@ -12,6 +12,9 @@ const useStore = create((set) => ({
   selectedItem: null,
   setSelectedItem: (item) => set({ selectedItem: item }),
   
+  selectedInvoiceId: null,
+  viewInvoice: (id) => set({ selectedInvoiceId: id, activePage: 'invoice-details' }),
+  
   items: [],
   customers: [],
   invoices: [],

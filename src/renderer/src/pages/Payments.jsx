@@ -3,7 +3,7 @@ import useStore from '../store/useStore';
 import { Search, CreditCard, ArrowDownCircle, ArrowUpCircle, User, Plus, Filter, Download, History, IndianRupee, X } from 'lucide-react';
 
 const Payments = () => {
-  const { customers, refreshCustomers, refreshDashboard, showNotification } = useStore();
+  const { customers, refreshCustomers, refreshDashboard, showNotification, viewInvoice } = useStore();
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [ledger, setLedger] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,7 +216,19 @@ const Payments = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             {entry.type === 'Debit' ? <ArrowUpCircle size={16} color="#ef4444" /> : <ArrowDownCircle size={16} color="#10b981" />}
                             <div>
-                              <p style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '2px' }}>{entry.description}</p>
+                              <p 
+                                style={{ 
+                                  fontWeight: '700', 
+                                  fontSize: '0.9rem', 
+                                  marginBottom: '2px',
+                                  color: entry.reference_type === 'invoice' ? 'var(--accent-primary)' : 'inherit',
+                                  cursor: entry.reference_type === 'invoice' ? 'pointer' : 'default',
+                                  textDecoration: entry.reference_type === 'invoice' ? 'underline' : 'none'
+                                }}
+                                onClick={() => entry.reference_type === 'invoice' && viewInvoice(entry.reference_id)}
+                              >
+                                {entry.description}
+                              </p>
                               <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Ref: {entry.reference_id || 'System'}</p>
                             </div>
                           </div>

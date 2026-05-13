@@ -34,7 +34,7 @@ const Reports = () => {
             <div style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Today&apos;s Sales</span>
-                <p style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: 0 }}>₹{stats.todaySales.toLocaleString()}</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: 0 }}>₹{(stats.todaySales || 0).toLocaleString()}</p>
               </div>
               <div style={{ background: '#e0e7ff', color: '#4f46e5', padding: '10px', borderRadius: '12px' }}><BarChart size={20} /></div>
             </div>
@@ -42,11 +42,11 @@ const Reports = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div style={{ padding: '1rem', background: '#f0fdf4', borderRadius: '16px', border: '1px solid #dcfce7' }}>
                 <span style={{ fontSize: '0.75rem', color: '#166534', fontWeight: '700' }}>TOTAL REVENUE</span>
-                <p style={{ fontSize: '1.25rem', fontWeight: '800', color: '#15803d', marginBottom: 0 }}>₹{stats.totalRevenue.toLocaleString()}</p>
+                <p style={{ fontSize: '1.25rem', fontWeight: '800', color: '#15803d', marginBottom: 0 }}>₹{(stats.totalRevenue || 0).toLocaleString()}</p>
               </div>
               <div style={{ padding: '1rem', background: '#fff1f2', borderRadius: '16px', border: '1px solid #ffe4e6' }}>
                 <span style={{ fontSize: '0.75rem', color: '#9f1239', fontWeight: '700' }}>TOTAL PENDING</span>
-                <p style={{ fontSize: '1.25rem', fontWeight: '800', color: '#be123c', marginBottom: 0 }}>₹{stats.pendingPayments.toLocaleString()}</p>
+                <p style={{ fontSize: '1.25rem', fontWeight: '800', color: '#be123c', marginBottom: 0 }}>₹{(stats.pendingPayments || 0).toLocaleString()}</p>
               </div>
             </div>
           </div>
